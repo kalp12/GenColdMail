@@ -11,7 +11,7 @@ class Chain:
     def __init__(self):
         self.llm = ChatGroq(temperature=0, groq_api_key=os.getenv("GROQ_API_KEY"), model_name="llama-3.1-8b-instant")
 
-    def extract_jobs(self, cleaned_text):
+    def extract_job(self, cleaned_text):
         prompt_extract = PromptTemplate.from_template(
             """
             ### SCRAPED TEXT FROM WEBSITE:
@@ -32,6 +32,34 @@ class Chain:
             raise OutputParserException("Context too big. Unable to parse jobs.")
         return res if isinstance(res, list) else [res]
 
+
+    def extract_jobs(self, cleaned_text):
+        prompt_extract = PromptTemplate.from_template(
+            """
+            ### SCRAPED TEXT FROM WEBSITE:
+            {page_data}
+            ### INSTRUCTION:
+            Extract the job postings in JSON format containing: `role`, `experience`, `skills`, `description`.
+            Only return valid JSON.
+            ### JSON ONLY:
+            """
+        )
+        chain_extract = prompt_extract | self.llm
+        res = chain_extract.invoke(input={"page_data": cleaned_text})
+    
+        json_parser = JsonOutputParser()
+        try:
+            parsed = json_parser.parse(res.content)
+        except OutputParserException:
+            # fallback: try plain JSON decode
+            try:
+                parsed = json.loads(res.content)
+            except json.JSONDecodeError:
+                raise OutputParserException(f"Failed to parse jobs: {res.content[:200]}")
+    
+        # Ensure it's always a list
+        return parsed if isinstance(parsed, list) else [parsed]
+    
     def write_mail(self, job, links):
         prompt_email = PromptTemplate.from_template(
             """
