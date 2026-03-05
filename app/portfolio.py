@@ -17,5 +17,8 @@ class Portfolio:
                                     metadatas={"links": row["Links"]},
                                     ids=[str(uuid.uuid4())])
 
-    def query_links(self, skills):
+    def query_link(self, skills):
         return self.collection.query(query_texts=skills['required'], n_results=2).get('metadatas', [])
+    
+    def query_links(self, skills):
+        return self.collection.query(query_texts=skills, n_results=2).get('metadatas', [])
